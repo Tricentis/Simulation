@@ -1,0 +1,38 @@
+schema: SimV1
+services:
+- name: POST Payment
+  steps:
+  - direction: Out
+    connection:
+      endpoint: http://localhost:17080/PaymentService
+      listen: false
+    message:
+      headers:
+      - key: Content-Type
+        value: application/json
+      method: POST
+      payload: |-
+        {
+          "amount": 5
+        }
+  - direction: In
+
+- name: GET Transactions
+  steps:
+  - direction: Out
+    connection:
+      endpoint: http://localhost:17080/PaymentService/TransactionReport
+      listen: false
+    message:
+        method: GET
+  - direction: In
+
+- name: DELETE Transactions
+  steps:
+  - direction: Out
+    connection:
+      endpoint: http://localhost:17080/PaymentService/purge
+      listen: false
+    message:
+        method: DELETE
+  - direction: In
