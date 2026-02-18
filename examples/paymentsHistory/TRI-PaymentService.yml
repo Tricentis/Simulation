@@ -1,0 +1,139 @@
+schema: SimV1
+name: TRI-PaymentService
+#description: Stateful payment service for TRI - POST payments, GET transaction report
+
+resources:
+  - name: payments
+    type: Table
+    file: payments.csv
+    listEntrySeparator: ","
+
+  - name: account
+    type: Table
+    file: account.csv
+
+connections:
+  - port: 17080
+    listen: true
+    name: PaymentServiceConnection
+
+services:
+  # POST /PaymentService - Receive a payment and add to account record in CSV
+  - description: Post a payment (dollar amount) to the account
+    name: PostPayment
+    steps:
+      - direction: In
+        name: postPaymentRequest
+        from: PaymentServiceConnection
+        trigger:
+          - type: Uri
+            value: /PaymentService
+          - property: Method
+            value: POST
+        buffer:
+          - name: paymentId
+            value: "{RND[6]}"
+          - name: amount
+            jsonPath: amount
+      - direction: Out
+        name: postPaymentResponse
+        message:
+          headers:
+            - key: Content-Type
+              value: application/json
+          payload: |
+            {
+              "message": "Payment recorded",
+              "paymentId": "",
+              "amount": ""
+            }
+        insert:
+          - jsonPath: paymentId
+            value: '{b[paymentId]}'
+          - jsonPath: amount
+            value: '{b[amount]}'
+        resource:
+          insert:
+            - ref: payments
+              value:
+                - "{b[paymentId]}"
+                - "{b[amount]}"
+          read:
+            - ref: account
+              where: accountId=='TRI'
+              name: currentAccount
+          update:
+            - ref: account
+              where: accountId=='TRI'
+              value:
+                total: "{math[{b[currentAccount.total]} + {b[amount]}]}"
+
+  # GET /PaymentService/TransactionReport - Report only (not active); list all payments and total
+  - description: Get transaction report - all payments and total (passive/report endpoint)
+    name: GetTransactionReport
+    steps:
+      - direction: In
+        name: getReportRequest
+        from: PaymentServiceConnection
+        trigger:
+          - type: Uri
+            value: /PaymentService/TransactionReport
+          - property: Method
+            value: GET
+      - direction: Out
+        name: getReportResponse
+        resource:
+          read:
+            - ref: payments
+              name: paymentList
+              template: |
+                {"paymentId": "%{paymentList.paymentId}", "amount": %{paymentList.amount}},
+            - ref: account
+              where: accountId=='TRI'
+              name: accountSummary
+        message:
+          headers:
+            - key: Content-Type
+              value: application/json
+          payload: |
+            {
+              "reportType": "TransactionReport",
+              "payments": [
+                %{paymentList}
+                null
+              ],
+              "total": %{accountSummary.total}
+            }
+
+  # DELETE /PaymentService/purge - Clear all payment rows; reset account total to 0 (preserves CSV headers and account row)
+  - description: Purge all payment data and reset account total to 0
+    name: PurgePayments
+    steps:
+      - direction: In
+        name: purgeRequest
+        from: PaymentServiceConnection
+        trigger:
+          - type: Uri
+            value: /PaymentService/purge
+          - property: Method
+            value: DELETE
+      - direction: Out
+        name: purgeResponse
+        resource:
+          delete:
+            - ref: payments
+          update:
+            - ref: account
+              where: accountId=='TRI'
+              value:
+                total: "0"
+        message:
+          headers:
+            - key: Content-Type
+              value: application/json
+          payload: |
+            {
+              "message": "Purge complete",
+              "paymentsCleared": true,
+              "accountReset": true
+            }
