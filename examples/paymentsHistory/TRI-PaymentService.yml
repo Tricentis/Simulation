@@ -6,8 +6,8 @@ resources:
   - name: payments
     type: Table
     file: payments.csv
-    listEntrySeparator: ","
-
+    listSeparator: |
+      ,
   - name: account
     type: Table
     file: account.csv
@@ -86,8 +86,11 @@ services:
           read:
             - ref: payments
               name: paymentList
-              template: |
-                {"paymentId": "%{paymentList.paymentId}", "amount": %{paymentList.amount}},
+              template: |-
+                {
+                  "paymentId": "%{paymentList.paymentId}",
+                  "amount": %{paymentList.amount}
+                }
             - ref: account
               where: accountId=='TRI'
               name: accountSummary
@@ -99,8 +102,7 @@ services:
             {
               "reportType": "TransactionReport",
               "payments": [
-                %{paymentList}
-                null
+            %{paymentList}
               ],
               "total": %{accountSummary.total}
             }
