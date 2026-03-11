@@ -1,0 +1,61 @@
+schema: SimV1
+
+connections:
+  - name: service
+    port: 17071
+
+  - name: service client
+    endpoint: localhost:17071
+    listen: false
+
+resources:
+  - name: requests
+    type: KeyValue
+
+services:
+  - name: request
+    steps:
+      - trigger:
+          - type: Path
+            value: /limit/request
+        buffer:
+          - name: time
+            value: "{TIME[][][mm]}"
+        resource:
+          insertOrUpdate:
+            - ref: requests
+              value:
+                "{B[time]}": "{MATH[{TRY[{FROM[requests][][{B[time]}]}][0]} + 1]}"
+
+      - to: service client
+        insert:
+          - uri: /gate/limit
+          - value: "{FROM[requests][][{B[time]}]}"
+      - direction: In
+        buffer:
+          - name: response
+      - to: service
+        insert:
+          - value: "{B[response]}"
+
+  - name: within limit
+    steps:
+      - trigger:
+          - uri: /gate/limit
+          - value: 10
+            operator: Less
+        buffer:
+          - name: request number
+      - insert:
+          - value: received request number {B[request number]} limit of 10 requests per minute
+
+  - name: limit exceeded
+    steps:
+      - trigger:
+          - uri: /gate/limit
+          - value: 10
+            operator: GreaterOrEqual
+        buffer:
+          - name: request number
+      - insert:
+          - value: received request number {B[request number]} which exceeds the limit of 10 requests per minute
