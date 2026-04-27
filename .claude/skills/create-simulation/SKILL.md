@@ -2,7 +2,7 @@
 name: create-simulation
 description: Scaffold a new Tricentis Simulation YAML file. Accepts a free-form description of the service to simulate (e.g. "a GET /users/{id} endpoint that returns user details, port 17080").
 argument-hint: <description of the service to simulate>
-allowed-tools: Read, Write, Glob
+allowed-tools: Read, Write, Glob, WebFetch
 ---
 
 Create a new Tricentis Simulation YAML file based on the user's description: **$ARGUMENTS**
@@ -16,6 +16,23 @@ Generate a complete, valid `SimV1` simulation file and write it to disk. Follow 
 Read any existing simulation files in the current directory (glob `**/*.yml`) so you can:
 - Match the port numbering convention already in use (avoid collisions)
 - Follow naming conventions used in the project
+
+### Step 1b — Consult official documentation when needed
+
+If the user's description involves features you are uncertain about — such as unfamiliar trigger types, buffer extraction patterns, resource operations, expressions, or multi-step flow control — fetch the official Tricentis Simulation documentation **before** generating the YAML:
+
+```
+https://docs.tricentis.com/tosca-cloud/en-us/content/api_simulation/sim_get_started.htm
+```
+
+Typical reasons to fetch the docs:
+- The description mentions a feature not covered by the patterns in Step 3 (e.g. `verify`, `use`, `templates`, `includes`, XML/SOAP handling, learning mode, forwarding)
+- You are unsure of the correct field name, allowed values, or nesting for a construct
+- The description asks for an expression (`{MATH[...]}`, `{TRY[...]}`, `{REGEX[...]}`, etc.) whose syntax you cannot recall precisely
+
+If the top-level page does not contain the detail you need, follow any relevant links on that page to sub-topics (e.g. trigger reference, expression reference, resource operations).
+
+You do **not** need to fetch the docs if the description maps cleanly to the patterns already in Step 3.
 
 ### Step 2 — Determine file details
 
